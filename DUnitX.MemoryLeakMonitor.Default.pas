@@ -36,15 +36,24 @@ uses
 
 type
   TDUnitXDefaultMemoryLeakMonitor = class(TInterfacedObject,IMemoryLeakMonitor)
+  private
+  	FPreMemoryManagerState	: TMemoryManagerState;
+    FPostMemoryManagerState	: TMemoryManagerState;
+
+    FSetupMemoryAllocated			: Int64;
+    FTearDownMemoryAllocated	: Int64;
+    FTestMemoryAllocated			: Int64;
+
+    procedure CompareMemoryState;
   public
     procedure PreSetup;
-    procedure PostSetUp;
+    procedure PostSetup;
     procedure PreTest;
     procedure PostTest;
     procedure PreTearDown;
     procedure PostTearDown;
 
-    function SetUpMemoryAllocated: Int64;
+    function SetupMemoryAllocated: Int64;
     function TearDownMemoryAllocated: Int64;
     function TestMemoryAllocated: Int64;
   end;
@@ -68,17 +77,39 @@ begin
     end);
 end;
 
-
+procedure TDUnitXDefaultMemoryLeakMonitor.CompareMemoryState;
+var
+	I	: Integer;
+begin
+  if Length(FPreMemoryManagerState.SmallBlockTypeStates)
+  	<> Length(FPostMemoryManagerState.SmallBlockTypeStates) then
+      begin
+        FSetupMemoryAllocated := 2;
+      end
+  else
+    begin
+    	for I := 0 to Length(FPreMemoryManagerState.SmallBlockTypeStates) do
+      begin
+      	if FPreMemoryManagerState.SmallBlockTypeStates[I].AllocatedBlockCount <>
+        	FPostMemoryManagerState.SmallBlockTypeStates[I].AllocatedBlockCount then
+            begin
+            	Inc(FSetupMemoryAllocated, (FPostMemoryManagerState.SmallBlockTypeStates[I].UseableBlockSize) * (FPostMemoryManagerState.SmallBlockTypeStates[I].AllocatedBlockCount - FPreMemoryManagerState.SmallBlockTypeStates[I].AllocatedBlockCount));
+            end;
+      end;
+    end;
+end;
 { TDUnitXDefaultMemoryLeakMonitor }
 
-procedure TDUnitXDefaultMemoryLeakMonitor.PostSetUp;
+procedure TDUnitXDefaultMemoryLeakMonitor.PostSetup;
 begin
-
+//	ScanForMemoryLeaks;
+	GetMemoryManagerState(FPostMemoryManagerState);
+	CompareMemoryState;
 end;
 
 procedure TDUnitXDefaultMemoryLeakMonitor.PostTearDown;
 begin
-
+//	ScanForMemoryLeaks;
 end;
 
 procedure TDUnitXDefaultMemoryLeakMonitor.PostTest;
@@ -88,6 +119,8 @@ end;
 
 procedure TDUnitXDefaultMemoryLeakMonitor.PreSetup;
 begin
+	GetMemoryManagerState(FPreMemoryManagerState);
+//  if  then
 
 end;
 
@@ -101,9 +134,9 @@ begin
 
 end;
 
-function TDUnitXDefaultMemoryLeakMonitor.SetUpMemoryAllocated: Int64;
+function TDUnitXDefaultMemoryLeakMonitor.SetupMemoryAllocated: Int64;
 begin
-  Result := 0;
+  Result := FSetupMemoryAllocated;
 end;
 
 function TDUnitXDefaultMemoryLeakMonitor.TearDownMemoryAllocated: Int64;
